@@ -1,0 +1,7 @@
+{
+  "name": "sentellent-root",
+  "private": true,
+  "scripts": {
+    "vercel-build": "cd frontend && npm install && npm run build"
+  }
+}
