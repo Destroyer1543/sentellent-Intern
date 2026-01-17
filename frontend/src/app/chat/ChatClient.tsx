@@ -429,7 +429,7 @@ export default function ChatPage() {
 
     // ✅ hard-block sending when pending exists
     if (inputLocked) {
-      pushMsg(active.id, "system", "You have an action waiting for confirmation. Please Confirm/Cancel first.");
+      pushMsg(active.id, "system", "You have an action waiting for confirmation. Please Confirm/Cancel first");
       return;
     }
 
