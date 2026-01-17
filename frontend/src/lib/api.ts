@@ -41,8 +41,8 @@ export type GoogleStatusResponse = {
   connected: boolean;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
+// ✅ Same-origin proxy on Vercel to avoid mixed content (HTTPS site calling HTTP backend)
+const API_BASE = "";
 
 /** Try to parse useful error messages (FastAPI often returns JSON {detail: ...}) */
 async function readError(r: Response): Promise<string> {
@@ -67,11 +67,18 @@ function authHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+function normalizePath(path: string): string {
+  // Ensure we always hit the Vercel rewrite: /api/...
+  if (path.startsWith("/api/")) return path;
+  if (path.startsWith("/")) return `/api${path}`;
+  return `/api/${path}`;
+}
+
 async function requestJSON<T>(
   path: string,
   init: RequestInit & { json?: any } = {}
 ): Promise<T> {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const url = path.startsWith("http") ? path : `${API_BASE}${normalizePath(path)}`;
 
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined),
@@ -117,13 +124,15 @@ export async function postConfirm(
 }
 
 export async function startGoogleAuth(user_id: string): Promise<{ auth_url: string }> {
-  const url = new URL(`${API_BASE}/auth/google/start`);
+  // goes to /api/auth/google/start?user_id=...
+  const url = new URL(`${normalizePath("/auth/google/start")}`, window.location.origin);
   url.searchParams.set("user_id", user_id);
   return requestJSON<{ auth_url: string }>(url.toString(), { method: "GET" });
 }
 
 export async function getGoogleStatus(user_id: string): Promise<GoogleStatusResponse> {
-  const url = new URL(`${API_BASE}/auth/google/status`);
+  // goes to /api/auth/google/status?user_id=...
+  const url = new URL(`${normalizePath("/auth/google/status")}`, window.location.origin);
   url.searchParams.set("user_id", user_id);
   return requestJSON<GoogleStatusResponse>(url.toString(), { method: "GET" });
 }

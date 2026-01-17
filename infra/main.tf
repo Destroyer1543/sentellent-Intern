@@ -195,7 +195,7 @@ resource "aws_ecs_task_definition" "backend" {
         }
       ],
       environment = [
-        { name = "FRONTEND_URL", value = "http://localhost:3000" }
+        { name = "FRONTEND_URL", value = "https://sentellent-intern-dxai.vercel.app" }
       ],
       logConfiguration = {
         logDriver = "awslogs",

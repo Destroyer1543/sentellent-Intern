@@ -32,7 +32,10 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 app = FastAPI(title="Sentellent Contextual Agent")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # lock later
+    allow_origins=[
+        "https://sentellent-intern-dxai.vercel.app",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
