@@ -124,7 +124,6 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
-
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = 80
@@ -150,6 +149,7 @@ resource "aws_cloudwatch_log_group" "backend" {
 data "aws_iam_policy_document" "ecs_task_assume" {
   statement {
     actions = ["sts:AssumeRole"]
+
     principals {
       type        = "Service"
       identifiers = ["ecs-tasks.amazonaws.com"]
@@ -187,16 +187,26 @@ resource "aws_ecs_task_definition" "backend" {
       name      = "backend"
       image     = local.backend_image
       essential = true
+
       portMappings = [
         {
           containerPort = 8000
           hostPort      = 8000
           protocol      = "tcp"
         }
-      ],
+      ]
+
       environment = [
-        { name = "FRONTEND_URL", value = "https://sentellent-intern-dxai.vercel.app" }
-      ],
+        # ✅ REQUIRED: switch ECS to sqlite (stops Postgres connection crash)
+        { name = "DATABASE_URL", value = "sqlite:////app/app.db" },
+
+        # ✅ keep your frontend url
+        { name = "FRONTEND_URL", value = "https://sentellent-intern-dxai.vercel.app" },
+
+        # ✅ add your oauth state secret (use the same as local)
+        { name = "GOOGLE_OAUTH_STATE_SECRET", value = "nXj7lXgV5fYqk1pYB2uRkqgYV0m7qkEw0mOQq3x0v1E" }
+      ]
+
       logConfiguration = {
         logDriver = "awslogs",
         options = {

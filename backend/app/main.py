@@ -8,11 +8,13 @@ import base64
 import os
 
 from app.agent.graph import agent  # compiled langgraph agent
-
+from app.db import models
 # Google OAuth
 from app.google.oauth import build_flow, creds_to_dict
 from app.db.google_tokens import save_google_token, load_google_token
 from app.db.session import SessionLocal  # DB session factory
+from app.db.session import Base, engine
+
 
 # ✅ DB hydration
 from app.db.memories import load_memories
@@ -41,6 +43,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
 # ------------------------
 # State helpers (OAuth)
 # ------------------------
