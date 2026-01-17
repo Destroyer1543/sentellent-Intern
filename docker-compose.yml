@@ -12,12 +12,17 @@ services:
 
   backend:
     build: ./backend
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql://app:app@db:5432/appdb
+      GOOGLE_OAUTH_STATE_SECRET: "nXj7lXgV5fYqk1pYB2uRkqgYV0m7qkEw0mOQq3x0v1E"
+      FRONTEND_URL: http://localhost:3000
     ports:
       - "8000:8000"
     depends_on:
       - db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level debug
 
   frontend:
     build: ./frontend

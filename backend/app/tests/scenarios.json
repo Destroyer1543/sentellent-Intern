@@ -1,0 +1,64 @@
+[
+  {
+    "name": "Save preference no_meetings_before",
+    "steps": [
+      {
+        "endpoint": "/chat",
+        "payload": { "user_id": "t_user", "message": "Don't schedule meetings before 10:00" },
+        "expect": {
+          "reply_contains": ["Saved preference", "no_meetings_before"],
+          "pending_action_null": true
+        }
+      }
+    ]
+  },
+  {
+    "name": "Gmail send creates pending_action",
+    "steps": [
+      {
+        "endpoint": "/chat",
+        "payload": { "user_id": "t_user", "message": "Send email to dummytest1654@gmail.com subject Test body Hello" },
+        "expect": {
+          "pending_action_type": "gmail_send",
+          "reply_contains": ["pending", "confirm"]
+        }
+      },
+      {
+        "endpoint": "/confirm",
+        "payload": { "user_id": "t_user", "confirmation": "no" },
+        "expect": {
+          "pending_action_null": true,
+          "reply_contains": ["Cancelled"]
+        }
+      }
+    ]
+  },
+  {
+    "name": "Pending action dominates unrelated requests",
+    "steps": [
+      {
+        "endpoint": "/chat",
+        "payload": { "user_id": "t_user2", "message": "Schedule 'Pending test' tomorrow at 11:00 for 30 minutes" },
+        "expect": {
+          "pending_action_type": "calendar_create",
+          "reply_contains": ["pending", "confirm"]
+        }
+      },
+      {
+        "endpoint": "/chat",
+        "payload": { "user_id": "t_user2", "message": "Show important emails from last 2 days" },
+        "expect": {
+          "pending_action_type": "calendar_create",
+          "reply_contains": ["pending", "confirm"]
+        }
+      },
+      {
+        "endpoint": "/confirm",
+        "payload": { "user_id": "t_user2", "confirmation": "no" },
+        "expect": {
+          "pending_action_null": true
+        }
+      }
+    ]
+  }
+]
