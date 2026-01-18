@@ -405,12 +405,77 @@ def _default_upcoming_window() -> Tuple[str, str]:
     return now.isoformat(), end.isoformat()
 
 # ---------- deterministic helpers (email routing) ----------
-def _looks_like_important_email_request(raw: str) -> bool:
-    t = (raw or "").lower()
-    if "email" in t or "emails" in t or "inbox" in t:
+_EMAIL_RE = re.compile(r"\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+
+def _looks_like_send_email_request(raw: str) -> bool:
+    """
+    Detects intent to SEND, not list.
+    Must run BEFORE important-email hard route.
+    """
+    t = (raw or "").strip().lower()
+    if any(k in t for k in ["send email", "send an email", "email to ", "mail to ", "send mail", "compose email"]):
         return True
+    if "subject" in t or "body" in t:
+        # If user included an address and subject/body, it's clearly a send.
+        if _EMAIL_RE.search(raw or ""):
+            return True
+    # "send to x@y.com"
+    if "send" in t and _EMAIL_RE.search(raw or ""):
+        return True
+    return False
+
+def _extract_send_email_args(raw: str) -> Optional[dict]:
+    """
+    Best-effort parsing for: Send email to X subject ... body ...
+    If it can't parse, return None and let LLM plan it.
+    """
+    if not raw:
+        return None
+    to = ""
+    m = _EMAIL_RE.search(raw)
+    if m:
+        to = m.group(0).strip()
+
+    if not to:
+        return None
+
+    # subject: take text after 'subject' up to 'body' (or end)
+    subj = ""
+    body = ""
+    msub = re.search(r"\bsubject\b\s*[:\-]?\s*(.+?)(?=\bbody\b|$)", raw, flags=re.IGNORECASE | re.DOTALL)
+    if msub:
+        subj = msub.group(1).strip()
+
+    mbody = re.search(r"\bbody\b\s*[:\-]?\s*(.+)$", raw, flags=re.IGNORECASE | re.DOTALL)
+    if mbody:
+        body = mbody.group(1).strip()
+
+    return {"to_email": to, "subject": subj or "", "body": body or ""}
+
+def _looks_like_important_email_request(raw: str) -> bool:
+    """
+    IMPORTANT: do NOT trigger on 'send email ...'
+    This is for listing important/starred.
+    """
+    t = (raw or "").strip().lower()
+
+    # If it looks like a SEND request, it's not a listing request.
+    if _looks_like_send_email_request(raw):
+        return False
+
+    # Strong signals
     if any(k in t for k in ["important", "starred", "flagged"]):
         return True
+
+    # Listing verbs + email nouns
+    listing_verbs = ["show", "list", "display", "fetch", "get", "see"]
+    email_nouns = ["email", "emails", "inbox", "mail", "messages"]
+    if any(v in t for v in listing_verbs) and any(n in t for n in email_nouns):
+        # But avoid generic "email me" etc.
+        if "email me" in t or "mail me" in t:
+            return False
+        return True
+
     return False
 
 def _extract_days(raw: str, default_days: int = 4) -> int:
@@ -433,6 +498,10 @@ def _extract_days(raw: str, default_days: int = 4) -> int:
         return 1
 
     return default_days
+
+def _wants_all(raw: str) -> bool:
+    t = (raw or "").lower()
+    return any(k in t for k in ["show all", "list all", "all important", "all starred", "all emails", "everything"])
 
 # ---------- deterministic helpers (prefs + delete by title) ----------
 _TIME_HHMM_24H = re.compile(r"\b([01]?\d|2[0-3])\s*[:.]\s*([0-5]\d)\b")
@@ -528,15 +597,6 @@ def _extract_delete_title(raw: str) -> Optional[str]:
         if cand:
             return cand
 
-    return None
-
-def _extract_update_title(raw: str) -> Optional[str]:
-    low = (raw or "").lower()
-    if not any(w in low for w in ["update", "edit", "change", "rename", "move", "reschedule"]):
-        return None
-    m = re.search(r'(?:update|edit|change|rename|move|reschedule)\s+["\']([^"\']+)["\']', raw, flags=re.IGNORECASE)
-    if m:
-        return m.group(1).strip()
     return None
 
 def _events_from_last_tool_results(state: dict) -> List[dict]:
@@ -821,10 +881,24 @@ def planner(state: dict) -> dict:
         state["response"] = ""
         return state
 
-    # ✅ HARD ROUTE: Important/starred email listing (prevents calendar misfire)
+    # ✅ HARD ROUTE: gmail_send (MUST be before important-email listing)
+    if _looks_like_send_email_request(raw):
+        args = _extract_send_email_args(raw)
+        if args:
+            state["plan"] = [{"tool": "gmail_send", "args": args}]
+            state["needs_more"] = False
+            state["response"] = ""
+            state["pending_intent_op"] = "clear"
+            state["pending_intent_out"] = None
+            return state
+        # If parsing failed, let the LLM planner handle it (but DO NOT fall into list_important)
+        # Continue to LLM section below.
+
+    # ✅ HARD ROUTE: Important/starred email listing
     if _looks_like_important_email_request(raw):
         days = _extract_days(raw, default_days=4)
-        state["plan"] = [{"tool": "gmail_list_important", "args": {"days": days, "max_results": 10}}]
+        max_results = 50 if _wants_all(raw) else 10
+        state["plan"] = [{"tool": "gmail_list_important", "args": {"days": days, "max_results": max_results}}]
         state["needs_more"] = False
         state["response"] = ""
         state["pending_intent_op"] = "clear"
@@ -873,12 +947,7 @@ def planner(state: dict) -> dict:
             eid = (hits[0].get("id") or "").strip()
             summary = hits[0].get("summary") or del_title
             if eid:
-                state["plan"] = [
-                    {
-                        "tool": "calendar_delete_events",
-                        "args": {"event_ids": [eid], "summaries": [str(summary)]},
-                    }
-                ]
+                state["plan"] = [{"tool": "calendar_delete_events", "args": {"event_ids": [eid], "summaries": [str(summary)]}}]
                 state["needs_more"] = False
                 state["response"] = ""
                 state["pending_intent_op"] = "clear"
@@ -971,7 +1040,6 @@ def planner(state: dict) -> dict:
                 state["plan"] = []
                 state["needs_more"] = True
                 state["response"] = question or "What time should I use (e.g., 10:00 or 22:30)?"
-
                 original_request = _pending_original_request(state, raw)
                 state["pending_intent_op"] = "save"
                 state["pending_intent_out"] = {
@@ -990,7 +1058,6 @@ def planner(state: dict) -> dict:
                 state["plan"] = []
                 state["needs_more"] = True
                 state["response"] = question or "What email address should I send it to?"
-
                 original_request = _pending_original_request(state, raw)
                 state["pending_intent_op"] = "save"
                 state["pending_intent_out"] = {
@@ -1004,7 +1071,6 @@ def planner(state: dict) -> dict:
             state["plan"] = []
             state["needs_more"] = True
             state["response"] = err
-
             original_request = _pending_original_request(state, raw)
             state["pending_intent_op"] = "save"
             state["pending_intent_out"] = {

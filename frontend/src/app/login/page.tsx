@@ -87,7 +87,7 @@ export default function LoginPage() {
             {QUOTES[quoteIdx]}
           </div>
           <p className="mt-8 text-lg xl:text-xl text-gray-600 max-w-2xl">
-            Sentellent — clean UI, strong agent loop, confirmation-gated tools.
+            Sentellent Intern — clean UI, strong agent loop, confirmation-gated tools.
           </p>
         </div>
       </div>
