@@ -217,7 +217,7 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "FRONTEND_URL", value = "https://sentellent-intern-dxai.vercel.app" },
 
         # ✅ oauth state secret
-        { name = "GOOGLE_OAUTH_STATE_SECRET", value = "nXj7lXgV5fYqk1pYB2uRkqgYV0m7qkEw0mOQq3x0v1E" }
+        { name = "GOOGLE_OAUTH_STATE_SECRET", value = "nXj7lXgV5fYqk1pYB2uRkqgYV0m7qkEw0mOQq3x0v1E" },
         { name = "PERPLEXITY_API_KEY", value = var.perplexity_api_key },
         { name = "PPLX_API_KEY",       value = var.perplexity_api_key }
       ]
