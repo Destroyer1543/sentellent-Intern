@@ -2,7 +2,7 @@ name: Backend Deploy (ECR + Terraform + ECS)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - "backend/**"
       - "infra/**"
@@ -46,10 +46,11 @@ jobs:
 
       - name: Terraform Init
         working-directory: infra
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Apply (roll new task definition)
         working-directory: infra
         env:
           TF_VAR_image_tag: ${{ github.sha }}
-        run: terraform apply -auto-approve
+          TF_VAR_perplexity_api_key: ${{ secrets.PERPLEXITY_API_KEY }}
+        run: terraform apply -auto-approve -input=false
