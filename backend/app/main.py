@@ -77,6 +77,7 @@ class ConfirmRequest(BaseModel):
 
 @app.get("/health")
 def health():
+    print("test")
     return {"status": "ok"}
 
 def _build_initial_state(db, user_id: str, message: str) -> dict:
