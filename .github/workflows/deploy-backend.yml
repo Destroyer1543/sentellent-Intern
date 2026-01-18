@@ -1,0 +1,55 @@
+name: Backend Deploy (ECR + Terraform + ECS)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "backend/**"
+      - "infra/**"
+      - ".github/workflows/backend-deploy.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build + Push backend image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t sentellent-backend:${IMAGE_TAG} ./backend
+          docker tag sentellent-backend:${IMAGE_TAG} ${ECR_REGISTRY}/sentellent-backend:${IMAGE_TAG}
+          docker push ${ECR_REGISTRY}/sentellent-backend:${IMAGE_TAG}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      - name: Terraform Apply (roll new task definition)
+        working-directory: infra
+        env:
+          TF_VAR_image_tag: ${{ github.sha }}
+        run: terraform apply -auto-approve

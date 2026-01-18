@@ -1,3 +1,8 @@
+# main.tf (drop-in replacement)
+# Keeps your existing infra working, adds ONLY what you need for CI/CD:
+# - image_tag variable so GitHub Actions can deploy by commit SHA/tag
+# - locals.backend_image uses var.image_tag (default "latest" so no breaking change)
+
 # --------
 # VPC
 # --------
@@ -168,10 +173,18 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 # --------
+# CI/CD support: image tag variable
+# --------
+variable "image_tag" {
+  type    = string
+  default = "latest"
+}
+
+# --------
 # ECS task + service
 # --------
 locals {
-  backend_image = "${aws_ecr_repository.backend.repository_url}:latest"
+  backend_image = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
 }
 
 resource "aws_ecs_task_definition" "backend" {
@@ -197,13 +210,13 @@ resource "aws_ecs_task_definition" "backend" {
       ]
 
       environment = [
-        # ✅ REQUIRED: switch ECS to sqlite (stops Postgres connection crash)
+        # ✅ REQUIRED: sqlite (stops Postgres connection crash)
         { name = "DATABASE_URL", value = "sqlite:////app/app.db" },
 
-        # ✅ keep your frontend url
+        # ✅ your frontend url
         { name = "FRONTEND_URL", value = "https://sentellent-intern-dxai.vercel.app" },
 
-        # ✅ add your oauth state secret (use the same as local)
+        # ✅ oauth state secret
         { name = "GOOGLE_OAUTH_STATE_SECRET", value = "nXj7lXgV5fYqk1pYB2uRkqgYV0m7qkEw0mOQq3x0v1E" }
       ]
 
