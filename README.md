@@ -6,6 +6,11 @@ This project is intentionally designed to avoid common agent failures such as ha
 
 ---
 
+<img width="1919" height="925" alt="Screenshot from 2026-01-19 12-47-23" src="https://github.com/user-attachments/assets/14e8b222-a77f-43ab-95be-2463041fdd3b" />
+
+<img width="1919" height="922" alt="trhh" src="https://github.com/user-attachments/assets/83263031-5e3f-436f-89d7-de864d703bdd" />
+
+
 ## System Goals
 
 - Support real-world actions (email, calendar) safely
@@ -283,4 +288,5 @@ This makes the system suitable for real workflows rather than demos.
 ## License
 
 MIT
+
 
