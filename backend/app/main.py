@@ -118,6 +118,7 @@ def _build_initial_state(db, user_id: str, message: str) -> dict:
     }
 
 def _apply_pending_intent_writeback(db, result: dict):
+    print("Hello")
     op = result.get("pending_intent_op")
     user_id = result.get("user_id")
 
