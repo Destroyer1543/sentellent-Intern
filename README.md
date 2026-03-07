@@ -1,4 +1,4 @@
-# Sentellent – Contextual Agentic AI Assistant
+# Sentellent – Agentic Project
 
 Sentellent is a production-oriented, stateful agentic AI system built to safely perform real-world actions such as reading emails, scheduling calendar events, and managing user preferences. The system combines deterministic logic with LLM-based reasoning to ensure correctness, debuggability, and user control.
 
@@ -288,5 +288,6 @@ This makes the system suitable for real workflows rather than demos.
 ## License
 
 MIT
+
 
 
